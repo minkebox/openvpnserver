@@ -13,10 +13,10 @@ fi
 IP=$(ip addr show dev ${HOME_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
 
 # Block all in and out traffic (except openvpn) on the ${HOME_INTERFACE}
-iptables -A INPUT -i ${HOME_INTERFACE} -p ${PROTO} --dport ${PORT} -j ACCEPT
-iptables -A OUTPUT -i ${HOME_INTERFACE} -p ${PROTO} --sport ${PORT} -j ACCEPT
-iptables -A INPUT -i ${HOME_INTERFACE} -j DROP
-iptables -A OUTPUT -i ${HOME_INTERFACE} -j DROP
+#iptables -A INPUT -i ${HOME_INTERFACE} -p ${PROTO} --dport ${PORT} -j ACCEPT
+#iptables -A OUTPUT -i ${HOME_INTERFACE} -p ${PROTO} --sport ${PORT} -j ACCEPT
+#iptables -A INPUT -i ${HOME_INTERFACE} -j DROP
+#iptables -A OUTPUT -i ${HOME_INTERFACE} -j DROP
 route del default
 
 if [ ! -e /etc/openvpn/pki/crl.pem ]; then
