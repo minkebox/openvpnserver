@@ -4,6 +4,9 @@ HOME_INTERFACE=eth0
 INTERNAL_INTERFACE=eth1
 EXTERNAL_INTERFACE=tun0
 PROTO=udp
+GLOBAL_HOSTNAME=157.131.142.82 # XXX FIXME XXX
+
+PATH=$PATH:/usr/share/easy-rsa
 
 if [ "${PORT}" = "" ]; then
   echo "No PORT set"
@@ -12,15 +15,22 @@ fi
 
 IP=$(ip addr show dev ${HOME_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
 
-# Block all in and out traffic (except openvpn) on the ${HOME_INTERFACE}
-#iptables -A INPUT -i ${HOME_INTERFACE} -p ${PROTO} --dport ${PORT} -j ACCEPT
-#iptables -A OUTPUT -i ${HOME_INTERFACE} -p ${PROTO} --sport ${PORT} -j ACCEPT
-#iptables -A INPUT -i ${HOME_INTERFACE} -j DROP
-#iptables -A OUTPUT -i ${HOME_INTERFACE} -j DROP
+# Firewall setup
 route del default
 
+#iptables -P INPUT DROP
+#iptables -P FORWARD DROP
+#iptables -P OUTPUT ACCEPT
+
+# Localhost okay
+#iptables -A INPUT -i lo -j ACCEPT
+#iptables -A OUTPUT -o lo -j ACCEPT
+
+# Only accept incoming traffic if there's an outgoing connection already
+#iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# Generate server config
 if [ ! -e /etc/openvpn/pki/crl.pem ]; then
-  PATH=$PATH:/usr/share/easy-rsa
   cd /etc/openvpn
   rm -rf pki ta.key
   easyrsa init-pki
@@ -32,10 +42,40 @@ if [ ! -e /etc/openvpn/pki/crl.pem ]; then
   cd /
 fi
 
-echo "port ${PORT}" > /etc/openvpn.conf
-echo "local ${IP}" >> /etc/openvpn.conf
-echo "proto ${PROTO}" >> /etc/openvpn.conf
-cat >> /etc/openvpn.conf <<__EOF__
+# Generate client config
+if [ ! -e /etc/openvpn/minke-client.ovpn ]; then
+  cd /etc/openvpn
+  easyrsa build-client-full minke-client nopass
+  echo "
+client
+nobind
+dev tun
+remote-cert-tls server
+remote ${GLOBAL_HOSTNAME} ${PORT} ${PROTO}
+key-direction 1
+cipher AES-256-CBC
+auth SHA256
+ncp-ciphers AES-256-GCM
+<key>
+$(cat /etc/openvpn/pki/private/minke-client.key)
+</key>
+<cert>
+$(cat /etc/openvpn/pki/issued/minke-client.crt)
+</cert>
+<ca>
+$(cat /etc/openvpn/pki/ca.crt)
+</ca>
+<tls-auth>
+$(cat /etc/openvpn/ta.key)
+</tls-auth>
+" > /etc/openvpn/minke-client.ovpn
+  cd /
+fi
+
+echo "
+port ${PORT}
+local ${IP}
+proto ${PROTO}
 dev tun
 ca /etc/openvpn/pki/ca.crt
 cert /etc/openvpn/pki/issued/minke.crt
@@ -50,7 +90,7 @@ cipher AES-256-CBC
 auth SHA256
 ncp-ciphers AES-256-GCM
 keepalive 10 120
-__EOF__
+" > /etc/openvpn.conf
 openvpn --config /etc/openvpn.conf --daemon
 
 # NAT firewall (${INTERNAL_INTERFACE} -> ${EXTERNAL_INTERFACE})
@@ -59,9 +99,9 @@ iptables -A FORWARD -i ${EXTERNAL_INTERFACE} -o ${INTERNAL_INTERFACE} -m state -
 iptables -A FORWARD -i ${INTERNAL_INTERFACE} -o ${EXTERNAL_INTERFACE} -j ACCEPT
 
 # UPNP
-echo "ext_ifname=${EXTERNAL_INTERFACE}" > /etc/miniupnpd.conf
-echo "listening_ip=${INTERNAL_INTERFACE}" >> /etc/miniupnpd.conf
-cat >> /etc/miniupnpd.conf <<__EOF__
+echo "
+ext_ifname=${EXTERNAL_INTERFACE}
+listening_ip=${INTERNAL_INTERFACE}
 http_port=0
 enable_natpmp=no
 enable_upnp=yes
@@ -71,20 +111,20 @@ secure_mode=no
 notify_interval=60
 allow 0-65535 172.0.0.0/8 0-65535
 deny 0-65535 0.0.0.0/0 0-65535
-__EOF__
+" > /etc/miniupnpd.conf
 miniupnpd -f /etc/miniupnpd.conf
 
 # mDNS reflector
-echo "[server]" > /etc/avahi-daemon.conf
-echo "allow-interfaces=${EXTERNAL_INTERFACE},${INTERNAL_INTERFACE}" >> /etc/avahi-daemon.conf
-cat >> /etc/avahi-daemon.conf <<__EOF__
+echo "
+[server]
+allow-interfaces=${EXTERNAL_INTERFACE},${INTERNAL_INTERFACE}
 enable-dbus=no
 allow-point-to-point=yes
 [publish]
 disable-publishing=yes
 [reflector]
 enable-reflector=yes
-__EOF__
+" > /etc/avahi-daemon.conf
 avahi-daemon --no-drop-root --daemonize --file=/etc/avahi-daemon.conf
 iptables -A INPUT -i ${EXTERNAL_INTERFACE} -p udp --dport 5353 -j ACCEPT
 
