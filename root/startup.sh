@@ -32,11 +32,11 @@ route del default
 # Generate server config
 if [ ! -e /etc/openvpn/pki/crl.pem ]; then
   cd /etc/openvpn
-  rm -rf pki ta.key
+  rm -rf pki
   easyrsa init-pki
   EASYRSA_BATCH=1 easyrsa build-ca nopass
   easyrsa gen-dh
-  openvpn --genkey --secret ta.key
+  openvpn --genkey --secret pki/ta.key
   easyrsa build-server-full minke nopass
   easyrsa gen-crl
   cd /
@@ -66,7 +66,7 @@ $(cat /etc/openvpn/pki/issued/minke-client.crt)
 $(cat /etc/openvpn/pki/ca.crt)
 </ca>
 <tls-auth>
-$(cat /etc/openvpn/ta.key)
+$(cat /etc/openvpn/pki/ta.key)
 </tls-auth>
 " > /etc/openvpn/minke-client.ovpn
   cd /
@@ -77,11 +77,22 @@ port ${PORT}
 local ${IP}
 proto ${PROTO}
 dev tun
-ca /etc/openvpn/pki/ca.crt
-cert /etc/openvpn/pki/issued/minke.crt
-key /etc/openvpn/pki/private/minke.key
-dh /etc/openvpn/pki/dh.pem
-tls-auth /etc/openvpn/ta.key 0
+key-direction 0
+<ca>
+$(cat /etc/openvpn/pki/ca.crt)
+</ca>
+<cert>
+$(cat /etc/openvpn/pki/issued/minke.crt)
+</cert>
+<key>
+$(cat /etc/openvpn/pki/private/minke.key)
+</key>
+<tls-auth>
+$(cat /etc/openvpn/pki/ta.key)
+</tls-auth>
+<dh>
+$(cat /etc/openvpn/pki/dh.pem)
+</dh>
 topology subnet
 server 10.20.30.0 255.255.255.0
 persist-tun
@@ -90,8 +101,8 @@ cipher AES-256-CBC
 auth SHA256
 ncp-ciphers AES-256-GCM
 keepalive 10 120
-" > /etc/openvpn.conf
-openvpn --config /etc/openvpn.conf --daemon
+" > /etc/openvpn/minke-server.ovpn
+openvpn --config /etc/openvpn/minke-server.ovpn --daemon
 
 # NAT firewall (${INTERNAL_INTERFACE} -> ${EXTERNAL_INTERFACE})
 iptables -t nat -A POSTROUTING -o ${EXTERNAL_INTERFACE} -j MASQUERADE
