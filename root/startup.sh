@@ -39,13 +39,9 @@ iptables -A OUTPUT -p udp --sport 68 -j ACCEPT -o ${HOME_INTERFACE}
 iptables -A INPUT  -p udp --sport 1900 -j ACCEPT -i ${HOME_INTERFACE}
 iptables -A OUTPUT -p udp --dport 1900 -j ACCEPT -o ${HOME_INTERFACE}
 # Block all other outgoing UDP traffic
-iptables -A OUTPUT -p udp -j DROP  -o ${HOME_INTERFACE}
+iptables -A OUTPUT -p udp -j DROP -o ${HOME_INTERFACE}
 # Drop anything else incoming
 iptables -A INPUT  -j DROP -i ${HOME_INTERFACE}
-
-# INTERNAL_INTERFACE -> HOME_INTERFACE
-# Block any traffic between these interfaces
-iptables -A FORWARD -j DROP -i ${INTERNAL_INTERFACE} -o ${HOME_INTERFACE}
 
 
 # Generate server config
@@ -123,17 +119,24 @@ keepalive 10 120
 " > /etc/openvpn/minke-server.ovpn
 openvpn --config /etc/openvpn/minke-server.ovpn --daemon
 
-# Firewall
 # INTERNAL_INTERFACE <-> EXTERNAL_INTERFACE
-iptables -t nat -A POSTROUTING -j SNAT --to-source ${INTERNAL_IP} -o ${INTERNAL_INTERFACE}
+# UPnP traffic handled locally
+iptables -t nat -A PREROUTING -p udp --dport 1900 -j ACCEPT -i ${INTERNAL_INTERFACE}
+iptables -t nat -A PREROUTING -p tcp --dport 1900 -j ACCEPT -i ${INTERNAL_INTERFACE}
+# Everything else we forward
 iptables -t nat -A PREROUTING  -j DNAT --to-destination ${EXTERNAL_REMOTE_IP} -i ${INTERNAL_INTERFACE}
-iptables -t nat -A POSTROUTING -j SNAT --to-source ${EXTERNAL_LOCAL_IP} -o ${EXTERNAL_INTERFACE}
+iptables -t nat -A POSTROUTING -j MASQUERADE -o ${EXTERNAL_INTERFACE}
+iptables -t nat -A POSTROUTING -j MASQUERADE -o ${INTERNAL_INTERFACE}
+# And we drop anything incoming we don't have a rule for
+iptables -A INPUT -j DROP -i ${EXTERNAL_INTERFACE}
 
 # UPNP
+iptables -t nat -N MINIUPNPD
+iptables -t nat -A PREROUTING -i ${EXTERNAL_INTERFACE} -j MINIUPNPD
 echo "
 ext_ifname=${EXTERNAL_INTERFACE}
 listening_ip=${INTERNAL_INTERFACE}
-http_port=0
+http_port=1900
 enable_natpmp=no
 enable_upnp=yes
 min_lifetime=120
