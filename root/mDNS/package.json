@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "dns-packet": "^5.0.4",
-    "netmask": "^1.0.6"
-  }
-}
