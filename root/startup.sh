@@ -1,6 +1,7 @@
 #! /bin/sh
 
 HOME_INTERFACE=${__HOME_INTERFACE}
+PRIVATE_INTERFACE=${__PRIVATE_INTERFACE}
 EXTERNAL_INTERFACE=tap0
 PROTO=udp
 DDNS_DOMAIN=twodown.net
@@ -18,6 +19,14 @@ TTL2=1800 # TTL/2
 trap "killall sleep openvpn monitor-ip.sh; exit" TERM INT
 
 HOME_IP=$(ip addr show dev ${HOME_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
+if [ "${PRIVATE_INTERFACE}" != "" ]; then
+  BRIDGE_IP=$(ip addr show dev ${PRIVATE_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
+  BRIDGE_INTERFACE=${PRIVATE_INTERFACE}
+else
+  BRIDGE_IP=${HOME_IP}
+  BRIDGE_INTERFACE=${HOME_INTERFACE}
+fi
+
 
 PATH=$PATH:/usr/share/easy-rsa
 
@@ -118,11 +127,11 @@ PORT=$(grep "^port " ${SERVER_CONFIG} | sed "s/port \(\d\+\)/\1/")
 openvpn --mktun --dev ${EXTERNAL_INTERFACE}
 
 brctl addbr br0
-ifconfig ${HOME_INTERFACE} 0.0.0.0 up
+ifconfig ${BRIDGE_INTERFACE} 0.0.0.0 up
 ifconfig ${EXTERNAL_INTERFACE} 0.0.0.0 up
-ifconfig br0 ${HOME_IP} netmask 255.255.255.0 up
+ifconfig br0 ${BRIDGE_IP} netmask 255.255.255.0 up
 brctl addif br0 ${EXTERNAL_INTERFACE}
-brctl addif br0 ${HOME_INTERFACE}
+brctl addif br0 ${BRIDGE_INTERFACE}
 route add default gw ${__GATEWAY}
 
 openvpn --daemon --config ${SERVER_CONFIG}
