@@ -68,6 +68,7 @@ if [ ! -e ${SERVER_CONFIG} ]; then
 nobind
 dev ${EXTERNAL_INTERFACE}
 persist-key
+persist-tun
 remote-cert-tls server
 remote $(cat ${PRIVATE_HOSTNAME}).${DDNS_DOMAIN} ${PORT} ${PROTO}
 key-direction 1
@@ -113,9 +114,13 @@ $(cat ${ROOT}/pki/ta.key)
 $(cat ${ROOT}/pki/dh.pem)
 </dh>
 persist-key
+persist-tun
 cipher AES-256-CBC
 auth SHA256
 ncp-ciphers AES-256-GCM
+duplicate-cn
+client-to-client
+explicit-exit-notify 1
 keepalive 10 60" > ${SERVER_CONFIG}
 
 fi
