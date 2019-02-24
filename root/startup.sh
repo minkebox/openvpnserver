@@ -146,6 +146,6 @@ openvpn --daemon --config ${SERVER_CONFIG}
 # Open the NAT
 sleep 1 &
 while wait "$!"; do
-  upnpc -m ${HOME_INTERFACE} -a ${HOME_IP} ${PORT} ${PORT} ${PROTO} ${TTL}
+  upnpc -e ${HOSTNAME} -m ${HOME_INTERFACE} -a ${HOME_IP} ${PORT} ${PORT} ${PROTO} ${TTL}
   sleep ${TTL2} &
 done
