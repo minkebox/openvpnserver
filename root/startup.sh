@@ -4,7 +4,7 @@ HOME_INTERFACE=${__HOME_INTERFACE}
 PRIVATE_INTERFACE=${__PRIVATE_INTERFACE}
 EXTERNAL_INTERFACE=tap0
 PROTO=udp
-DDNS_DOMAIN=twodown.net
+DDNS_DOMAIN=minkebox.net
 
 ROOT=/etc/openvpn
 SERVER_CONFIG=${ROOT}/minke-server.ovpn
@@ -142,7 +142,7 @@ route add default gw ${__GATEWAY}
 openvpn --daemon --config ${SERVER_CONFIG}
 
 # Monitor and update external IP address
-/scripts/monitor-ip.sh ${HOME_INTERFACE} $(cat ${PRIVATE_HOSTNAME}) ${DDNS_DOMAIN} &
+/scripts/monitor-ip.sh ${HOME_INTERFACE} $(cat ${PRIVATE_HOSTNAME}) &
 # Open the NAT
 sleep 1 &
 while wait "$!"; do
