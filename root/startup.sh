@@ -13,10 +13,8 @@ ORIGINAL_CLIENT_CONFIG=/etc/config.ovpn
 PRIVATE_HOSTNAME=${ROOT}/unique-hostname
 PORTRANGE_START=41310
 PORTRANGE_LEN=256
-TTL=3600 # 1 hour
-TTL2=1800 # TTL/2
-
-trap "killall sleep openvpn monitor-ip.sh; exit" TERM INT
+TTL=600 # 10 minutes
+TTL2=300 # TTL/2
 
 HOME_IP=$(ip addr show dev ${HOME_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
 if [ "${PRIVATE_INTERFACE}" != "" ]; then
@@ -128,6 +126,8 @@ fi
   # Extract port from server config
 PORT=$(grep "^port " ${SERVER_CONFIG} | sed "s/port \(\d\+\)/\1/")
 
+trap "upnpc -m ${HOME_INTERFACE} -d ${PORT} ${PROTO}; killall sleep openvpn; exit" TERM INT
+
 # Bridge
 openvpn --mktun --dev ${EXTERNAL_INTERFACE}
 
@@ -149,3 +149,4 @@ while wait "$!"; do
   upnpc -e ${HOSTNAME} -m ${HOME_INTERFACE} -a ${HOME_IP} ${PORT} ${PORT} ${PROTO} ${TTL}
   sleep ${TTL2} &
 done
+upnpc -m ${HOME_INTERFACE} -d ${PORT} ${PROTO}
