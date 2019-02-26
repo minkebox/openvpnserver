@@ -15,11 +15,14 @@ PORTRANGE_START=41310
 PORTRANGE_LEN=256
 TTL=600 # 10 minutes
 TTL2=300 # TTL/2
+SERVER_BRIDGE=
 
 HOME_IP=$(ip addr show dev ${HOME_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
 if [ "${PRIVATE_INTERFACE}" != "" ]; then
   BRIDGE_IP=$(ip addr show dev ${PRIVATE_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
   BRIDGE_INTERFACE=${PRIVATE_INTERFACE}
+  BRIDGE_IP_ROOT=$(echo ${BRIDGE_IP} | sed "s/^\(\d\+.\d\+.\d\+\).*$/\1/")
+  SERVER_BRIDGE="${BRIDGE_IP} 255.255.255.0 ${BRIDGE_IP_ROOT}.238 ${BRIDGE_IP_ROOT}.254"
 else
   BRIDGE_IP=${HOME_IP}
   BRIDGE_INTERFACE=${HOME_INTERFACE}
@@ -47,7 +50,7 @@ if [ ! -e ${ROOT}/pki/crl.pem ]; then
   cd /
 fi
 
-if [ ! -e ${SERVER_CONFIG} ]; then
+if [ ! -e ${CLIENT_CONFIG} ]; then
 
   # Select an unused port at random from within our standard range avoiding any we see as in use
   active_ports=$(upnpc -m ${HOME_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
@@ -90,8 +93,13 @@ $(cat ${ROOT}/pki/ta.key)
   # Make it retrievable
   cat ${CLIENT_CONFIG} > ${ORIGINAL_CLIENT_CONFIG}
 
-  # Generate the server config
-  echo "server-bridge
+fi
+
+# Extract port from client config
+PORT=$(grep "^remote " ${CLIENT_CONFIG} | sed "s/^remote .* \(\d\+\) .*/\1/")
+
+# Always generate the server config (in case the network changed so SERVER_BRIDGE has changed)
+echo "server-bridge ${SERVER_BRIDGE}
 port ${PORT}
 proto ${PROTO}
 dev ${EXTERNAL_INTERFACE}
@@ -120,11 +128,6 @@ duplicate-cn
 client-to-client
 explicit-exit-notify 1
 keepalive 10 60" > ${SERVER_CONFIG}
-
-fi
-
-  # Extract port from server config
-PORT=$(grep "^port " ${SERVER_CONFIG} | sed "s/port \(\d\+\)/\1/")
 
 trap "upnpc -m ${HOME_INTERFACE} -d ${PORT} ${PROTO}; killall sleep openvpn; exit" TERM INT
 
