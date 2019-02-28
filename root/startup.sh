@@ -5,12 +5,12 @@ PRIVATE_INTERFACE=${__PRIVATE_INTERFACE}
 EXTERNAL_INTERFACE=tap0
 PROTO=udp
 DDNS_DOMAIN=minkebox.net
+PRIVATE_HOSTNAME=${__GLOBALID}
 
 ROOT=/etc/openvpn
 SERVER_CONFIG=${ROOT}/minke-server.ovpn
 CLIENT_CONFIG=${ROOT}/minke-client.ovpn
 ORIGINAL_CLIENT_CONFIG=/etc/config.ovpn
-PRIVATE_HOSTNAME=${ROOT}/unique-hostname
 PORTRANGE_START=41310
 PORTRANGE_LEN=256
 TTL=600 # 10 minutes
@@ -40,7 +40,6 @@ RANDOM=$(head -1 /dev/urandom | cksum)
 if [ ! -e ${ROOT}/pki/crl.pem ]; then
   cd ${ROOT}
   rm -rf pki
-  cat /proc/sys/kernel/random/uuid > ${PRIVATE_HOSTNAME}
   easyrsa init-pki
   EASYRSA_BATCH=1 easyrsa build-ca nopass
   easyrsa gen-dh
@@ -71,7 +70,7 @@ dev ${EXTERNAL_INTERFACE}
 persist-key
 persist-tun
 remote-cert-tls server
-remote $(cat ${PRIVATE_HOSTNAME}).${DDNS_DOMAIN} ${PORT} ${PROTO}
+remote ${PRIVATE_HOSTNAME}.${DDNS_DOMAIN} ${PORT} ${PROTO}
 key-direction 1
 cipher AES-256-CBC
 auth SHA256
@@ -145,7 +144,7 @@ route add default gw ${__GATEWAY}
 openvpn --daemon --config ${SERVER_CONFIG}
 
 # Monitor and update external IP address
-/scripts/monitor-ip.sh ${HOME_INTERFACE} $(cat ${PRIVATE_HOSTNAME}) &
+/scripts/monitor-ip.sh ${HOME_INTERFACE} ${PRIVATE_HOSTNAME} &
 # Open the NAT
 sleep 1 &
 while wait "$!"; do
