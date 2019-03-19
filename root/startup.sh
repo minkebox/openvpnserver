@@ -37,7 +37,7 @@ export EASYRSA_VARS_FILE=/etc/easyrsa.vars
 RANDOM=$(head -1 /dev/urandom | cksum)
 
 # Generate server config
-if [ ! -e ${ROOT}/pki/crl.pem ]; then
+if [ ! -e ${ROOT}/config-done ]; then
   cd ${ROOT}
   rm -rf pki
   easyrsa init-pki
@@ -46,6 +46,7 @@ if [ ! -e ${ROOT}/pki/crl.pem ]; then
   openvpn --genkey --secret pki/ta.key
   easyrsa build-server-full minke-simple-vpn nopass
   easyrsa gen-crl
+  touch config-done
   cd /
 fi
 
@@ -88,11 +89,10 @@ $(cat ${ROOT}/pki/ca.crt)
 <tls-auth>
 $(cat ${ROOT}/pki/ta.key)
 </tls-auth>" > ${CLIENT_CONFIG}
-
-  # Make it retrievable
-  cat ${CLIENT_CONFIG} > ${ORIGINAL_CLIENT_CONFIG}
-
 fi
+
+# Make it retrievable
+cat ${CLIENT_CONFIG} > ${ORIGINAL_CLIENT_CONFIG}
 
 # Extract port from client config
 PORT=$(grep "^remote " ${CLIENT_CONFIG} | sed "s/^remote .* \(\d\+\) .*/\1/")
@@ -143,8 +143,6 @@ route add default gw ${__GATEWAY}
 
 openvpn --daemon --config ${SERVER_CONFIG}
 
-# Monitor and update external IP address
-/scripts/monitor-ip.sh ${HOME_INTERFACE} ${PRIVATE_HOSTNAME} &
 # Open the NAT
 sleep 1 &
 while wait "$!"; do
