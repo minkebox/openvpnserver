@@ -138,6 +138,9 @@ brctl addbr br0
 ifconfig ${BRIDGE_INTERFACE} 0.0.0.0 up
 ifconfig ${EXTERNAL_INTERFACE} 0.0.0.0 up
 ifconfig br0 ${BRIDGE_IP} netmask 255.255.255.0 up
+# Bridge inherits "main" network mac address
+BRIDGE_MAC=$(cat /sys/class/net/${BRIDGE_INTERFACE}/address)
+/sbin/ip link set br0 address ${BRIDGE_MAC}
 brctl addif br0 ${BRIDGE_INTERFACE}
 brctl addif br0 ${EXTERNAL_INTERFACE}
 route add default gw ${__GATEWAY}
