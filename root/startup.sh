@@ -139,8 +139,7 @@ ifconfig ${BRIDGE_INTERFACE} 0.0.0.0 up
 ifconfig ${EXTERNAL_INTERFACE} 0.0.0.0 up
 ifconfig br0 ${BRIDGE_IP} netmask 255.255.255.0 up
 # Bridge inherits "main" network mac address
-BRIDGE_MAC=$(cat /sys/class/net/${BRIDGE_INTERFACE}/address)
-/sbin/ip link set br0 address ${BRIDGE_MAC}
+/sbin/ip link set br0 address $(cat /sys/class/net/${BRIDGE_INTERFACE}/address)
 brctl addif br0 ${BRIDGE_INTERFACE}
 brctl addif br0 ${EXTERNAL_INTERFACE}
 route add default gw ${__GATEWAY}
@@ -151,6 +150,9 @@ openvpn --daemon --config ${SERVER_CONFIG}
 sleep 1 &
 while wait "$!"; do
   upnpc -e ${HOSTNAME} -a ${HOME_IP} ${PORT} ${PORT} ${PROTO} ${TTL}
+  if [ "${__HOSTIP6}" != "" ]; then
+    upnpc -e ${HOSTNAME}_6 -6 -A "" 0 ${__HOSTIP6} ${PORT} ${PROTO} ${TTL}
+  fi
   sleep ${TTL2} &
 done
 upnpc -d ${PORT} ${PROTO}
