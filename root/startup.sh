@@ -54,7 +54,7 @@ fi
 if [ ! -e ${CLIENT_CONFIG} ]; then
 
   # Select an unused port at random from within our standard range avoiding any we see as in use
-  active_ports=$(upnpc -m ${HOME_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
+  active_ports=$(upnpc -u ${__UPNPURL} -m ${HOME_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
   while true ; do
     PORT=$((${PORTRANGE_START} + RANDOM % ${PORTRANGE_LEN}))
     if ! $(echo $active_ports | grep -q ${PORT}); then
@@ -129,7 +129,7 @@ client-to-client
 explicit-exit-notify 1
 keepalive 10 60" > ${SERVER_CONFIG}
 
-trap "upnpc -m br0 -d ${PORT} ${PROTO}; killall sleep openvpn; exit" TERM INT
+trap "upnpc -u ${__UPNPURL} -m br0 -d ${PORT} ${PROTO}; killall sleep openvpn; exit" TERM INT
 
 # Bridge
 openvpn --mktun --dev ${EXTERNAL_INTERFACE}
@@ -149,10 +149,10 @@ openvpn --daemon --config ${SERVER_CONFIG}
 # Open the NAT
 sleep 1 &
 while wait "$!"; do
-  upnpc -e ${HOSTNAME} -a ${HOME_IP} ${PORT} ${PORT} ${PROTO} ${TTL}
+  upnpc -u ${__UPNPURL} -e ${HOSTNAME} -a ${HOME_IP} ${PORT} ${PORT} ${PROTO} ${TTL}
   if [ "${__HOSTIP6}" != "" ]; then
-    upnpc -e ${HOSTNAME}_6 -6 -A "" 0 ${__HOSTIP6} ${PORT} ${PROTO} ${TTL}
+    upnpc -u ${__UPNPURL} -e ${HOSTNAME}_6 -6 -A "" 0 ${__HOSTIP6} ${PORT} ${PROTO} ${TTL}
   fi
   sleep ${TTL2} &
 done
-upnpc -d ${PORT} ${PROTO}
+upnpc -u ${__UPNPURL} -d ${PORT} ${PROTO}
