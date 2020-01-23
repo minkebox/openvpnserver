@@ -211,8 +211,6 @@ brctl addif br0 tap0
 route add default gw ${__GATEWAY}
 
 # Masquarade the TUN vpn
-#iptables -I FORWARD -i tun0 -o br0 -m conntrack --ctstate NEW -j ACCEPT
-#iptables -I FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 iptables -t nat -I POSTROUTING -o br0 -s ${SERVER_NETWORK_TUN}/24 -j MASQUERADE
 
 openvpn --daemon --config ${SERVER_CONFIG_TAP}
