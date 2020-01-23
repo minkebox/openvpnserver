@@ -198,8 +198,11 @@ keepalive 10 60" > ${SERVER_CONFIG_TUN}
 
 trap "upnpc -u ${__UPNPURL} -m br0 -d ${PORT_TAP} ${PROTO}; upnpc -u ${__UPNPURL} -m br0 -d ${PORT_TUN} ${PROTO}; killall sleep openvpn; exit" TERM INT
 
-# Bridge the TAP vpn
+# Premake devices
 openvpn --mktun --dev tap0
+openvpn --mktun --dev tun0
+
+# Bridge the TAP vpn
 brctl addbr br0
 ifconfig ${BRIDGE_INTERFACE} 0.0.0.0 up
 ifconfig tap0 0.0.0.0 up
