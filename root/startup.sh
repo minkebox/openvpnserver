@@ -208,7 +208,7 @@ client-to-client
 explicit-exit-notify 1
 keepalive 10 60" > ${SERVER_CONFIG_TUN}
 
-trap "upnpc -u ${__UPNPURL} -m br0 -d ${PORT_TAP} ${PROTO}; upnpc -u ${__UPNPURL} -m br0 -d ${PORT_TUN} ${PROTO}; killall sleep openvpn; exit" TERM INT
+trap "upnpc -u ${__UPNPURL} -d ${PORT_TAP} ${PROTO}; upnpc -u ${__UPNPURL} -d ${PORT_TUN} ${PROTO}; killall sleep openvpn; exit" TERM INT
 
 # Premake devices
 openvpn --mktun --dev tap0
