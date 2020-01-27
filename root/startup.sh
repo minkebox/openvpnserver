@@ -72,7 +72,13 @@ if [ ! -e ${CLIENT_CONFIG_TAP} ]; then
   cd ${ROOT}
   easyrsa build-client-full minke-client nopass
   cd /
-  echo "client
+  echo "#
+# OPENVPN configuration:
+#  Host: ${PRIVATE_HOSTNAME}.${DDNS_DOMAIN}
+#  Port ${PORT_TAP}
+#  Protocol: UDP
+#
+client
 nobind
 dev tap
 persist-key
@@ -103,7 +109,13 @@ PORT_TAP=$(grep "^remote " ${CLIENT_CONFIG_TAP} | sed "s/^remote .* \(\d\+\) .*/
 PORT_TUN=$((${PORT_TAP} + 1))
 
 if [ ! -e ${CLIENT_CONFIG_TUN} ]; then
-  echo "client
+  echo "#
+# OPENVPN configuration:
+#  Host: ${PRIVATE_HOSTNAME}.${DDNS_DOMAIN}
+#  Port ${PORT_TUN}
+#  Protocol: UDP
+#
+client
 nobind
 dev tun
 persist-key
