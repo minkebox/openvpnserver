@@ -151,21 +151,6 @@ port ${PORT_TAP}
 proto ${PROTO}
 dev tap0
 key-direction 0
-<ca>
-$(cat ${ROOT}/pki/ca.crt)
-</ca>
-<cert>
-$(cat ${ROOT}/pki/issued/minke-simple-vpn.crt)
-</cert>
-<key>
-$(cat ${ROOT}/pki/private/minke-simple-vpn.key)
-</key>
-<tls-auth>
-$(cat ${ROOT}/pki/ta.key)
-</tls-auth>
-<dh>
-$(cat ${ROOT}/pki/dh.pem)
-</dh>
 persist-key
 persist-tun
 cipher AES-256-CBC
@@ -174,13 +159,7 @@ ncp-ciphers AES-256-GCM
 duplicate-cn
 client-to-client
 explicit-exit-notify 1
-keepalive 10 60" > ${SERVER_CONFIG_TAP}
-
-echo "server ${SERVER_NETWORK_TUN} 255.255.255.0
-port ${PORT_TUN}
-proto ${PROTO}
-dev tun0
-key-direction 0
+keepalive 10 60
 <ca>
 $(cat ${ROOT}/pki/ca.crt)
 </ca>
@@ -195,7 +174,13 @@ $(cat ${ROOT}/pki/ta.key)
 </tls-auth>
 <dh>
 $(cat ${ROOT}/pki/dh.pem)
-</dh>
+</dh>" > ${SERVER_CONFIG_TAP}
+
+echo "server ${SERVER_NETWORK_TUN} 255.255.255.0
+port ${PORT_TUN}
+proto ${PROTO}
+dev tun0
+key-direction 0
 persist-key
 persist-tun
 push \"route ${BRIDGE_IP_ROOT}.0 255.255.255.0\"
@@ -206,7 +191,22 @@ ncp-ciphers AES-256-GCM
 duplicate-cn
 client-to-client
 explicit-exit-notify 1
-keepalive 10 60" > ${SERVER_CONFIG_TUN}
+keepalive 10 60
+<ca>
+$(cat ${ROOT}/pki/ca.crt)
+</ca>
+<cert>
+$(cat ${ROOT}/pki/issued/minke-simple-vpn.crt)
+</cert>
+<key>
+$(cat ${ROOT}/pki/private/minke-simple-vpn.key)
+</key>
+<tls-auth>
+$(cat ${ROOT}/pki/ta.key)
+</tls-auth>
+<dh>
+$(cat ${ROOT}/pki/dh.pem)
+</dh>" > ${SERVER_CONFIG_TUN}
 
 trap "upnpc -u ${__UPNPURL} -d ${PORT_TAP} ${PROTO}; upnpc -u ${__UPNPURL} -d ${PORT_TUN} ${PROTO}; killall sleep openvpn; exit" TERM INT
 
