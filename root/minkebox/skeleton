@@ -1,0 +1,167 @@
+{
+  name: `Simple VPN`,
+  description: `Super simple VPN to connect to your home network`,
+  image: `registry.minkebox.net/minkebox/openvpnserver`,
+  tags: [ 'VPN', 'Security', 'Networking' ],
+  actions: [
+    {
+      type: `Header`,
+      title: `Network`,
+      visible: `property.Advanced`
+    },
+    {
+      type: `Text`,
+      text: `Select which network this application will use. You probably want <b>home</b> unless this application is being used on a private network.`
+    },
+    {
+      type: `Network`,
+      name: `primary`,
+      description: `Select network`
+    },
+    {
+      type: `Header`,
+      title: `Client Configurations`
+    },
+    {
+      type: `Help`,
+      text: `Simple VPN actually creates two VPN servers, one using "tap" networking and the other using "tun". The "tap" configuration
+can only be used by desktops, while the "tun" configuration can be used by anything. The "tap" configutation makes it appear as if
+your device is physically connected to your home network. Android and iOS do not support this mode,
+and so "tun" networking is also provided. With this configuration, you can access anything on your network, but your machine is hidden
+behind this VPN server and is not directly connected. Most of the time this won't matter, but if you're using applications which rely on
+broadcast or multicast services, they might not work correctly. Finally, "tap" networking will not work if MinkeBox is connected to your network
+using Wi-Fi; use "tun" in this case.`,
+      visible: `property.Advanced`
+    },
+    {
+      type: `Text`,
+      text: `The VPN will generate configuration files which anyone can use to connect to your network. They can be used by any number of people or machines, and require no passwords. Guard them well!.`
+    },
+    {
+      type: `Text`,
+      text: `These can take a while to generate. The download button will become blue once it is available.`
+    },
+    {
+      type: `File`,
+      description: `Configuration`,
+      name: `/etc/config.ovpn`,
+      style: `Download`
+    },
+    {
+      type: `File`,
+      description: `Desktop optimized configuration (see Help for details)`,
+      name: `/etc/config-alt.ovpn`,
+      style: `Download`,
+      visible: `property.Advanced`
+    },
+    {
+      type: `Help`,
+      text: `Compatible VPN clients
+<ul>
+<li><a target="_blank" href="https://www.sparklabs.com/viscosity/">Viscosity</a> (Win, Mac)</li>
+<li><a target="_blank" href="https://tunnelblick.net/">Tunnelblick</a> (Mac)</li>
+<li><a target="_blank" href="https://openvpn.net/client-connect-vpn-for-windows/">OpenVPN Connect</a> (Win)</li>
+<li><a target="_blank" href="https://apps.apple.com/us/app/openvpn-connect/id590379981">OpenVPN Connect</a> (iPhone)</li>
+<li><a target="_blank" href="https://play.google.com/store/apps/details?id=net.openvpn.openvpn">OpenVPN Connect</a> (Android)</li>
+</ul>`
+    },
+    {
+      type: `Text`,
+      text: ''
+    },
+    {
+      type: `UPnP`
+    }
+  ],
+  properties: [
+    {
+      type: `Feature`,
+      name: `vpn`
+    },
+    {
+      type: `Feature`,
+      name: `ddns`
+    },
+    {
+      type: `Directory`,
+      name: `/etc/openvpn`,
+      style: `boot`
+    },
+    {
+      type: `File`,
+      name: `/etc/config.ovpn`,
+      style: `boot`
+    },
+    {
+      type: `File`,
+      name: `/etc/config-alt.ovpn`,
+      style: `boot`
+    },
+    {
+      type: `Network`,
+      name: `primary`,
+      defaultValue: `home`
+    },
+    {
+      type: `Network`,
+      name: `secondary`,
+      defaultValue: `home`
+    }
+  ],
+  monitor: {
+    cmd: `echo $(ifconfig tun0 | grep "RX bytes" | tr '\\n' ' ' | sed "s/^.*RX bytes:\\([0-9]*\\).*TX bytes:\\([0-9]*\\).*$/\\1 \\2/") $(ifconfig tap0 | grep "RX bytes" | tr '\\n' ' ' | sed "s/^.*RX bytes:\\([0-9]*\\).*TX bytes:\\([0-9]*\\).*$/\\1 \\2/")`,
+    polling: 1,
+    parser: `
+      const rxtx = input.split(' ');
+      if (rxtx.length == 4) {
+        const now = Date.now() / 1000;
+        rxtx[0] = parseInt(rxtx[0]) + parseInt(rxtx[2]);
+        rxtx[1] = parseInt(rxtx[1]) + parseInt(rxtx[3]);
+        if (!state) {
+          state = {
+            rx: [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ],
+            tx: [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ],
+            last: rxtx,
+            then: now - 1
+          };
+        }
+        state.rx.shift();
+        state.tx.shift();
+        state.rx.push((rxtx[0] - state.last[0]) * 8 / 1000000 / (now - state.then));
+        state.tx.push((rxtx[1] - state.last[1]) * 8 / 1000000 / (now - state.then));
+        output.rx = state.rx.slice(-1)[0].toFixed(1);
+        output.tx = state.tx.slice(-1)[0].toFixed(1);
+        state.last = rxtx;
+        state.then = now;
+      }
+      output.graph = {
+        traffic: {
+          type: 'line',
+          data: {
+            labels: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63],
+            datasets: [
+              { label: 'RX', data: state.rx, borderColor: '#88cce7', backgroundColor: '#88cce7', fill: false, pointRadius: 0 },
+              { label: 'TX', data: state.tx, borderColor: '#41b376', backgroundColor: '#41b376', fill: false, pointRadius: 0 }
+            ]
+          },
+          options: {
+            animation: { duration: 0 },
+            maintainAspectRatio: false,
+            adaptive: true,
+            title: { display: true, text: 'Bandwidth (Mb/s)' },
+            scales: {
+              xAxes: [{
+                display: false
+              }],
+              yAxes: [{
+                ticks: { beginAtZero: true }
+              }]
+            }
+          }
+        }
+      };
+    `,
+    minwidth: '400px',
+    template: `{{{graph.traffic}}}`
+  }
+}
