@@ -56,17 +56,22 @@ fi
 
 if [ ! -e ${CLIENT_CONFIG_TAP} ]; then
 
-  # Select an unused port at random from within our standard range avoiding any we see as in use
-  active_ports=$(upnpc -u ${__UPNPURL} -m ${HOME_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
-  while true ; do
-    PORT_TAP=$((${PORTRANGE_START} + RANDOM % ${PORTRANGE_LEN}))
-    PORT_TUN=$((${PORT_TAP} + 1))
-    if ! $(echo $active_ports | grep -q ${PORT_TAP}); then
-      if ! $(echo $active_ports | grep -q ${PORT_TUN}); then
-        break;
+  if [ "${SELECTED_PORT}" = "" ]; then
+    # Select an unused port at random from within our standard range avoiding any we see as in use
+    active_ports=$(upnpc -u ${__UPNPURL} -m ${HOME_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
+    while true ; do
+      PORT_TUN=$((${PORTRANGE_START} + RANDOM % ${PORTRANGE_LEN}))
+      PORT_TAP=$((${PORT_TUN} + 1))
+      if ! $(echo $active_ports | grep -q ${PORT_TAP}); then
+        if ! $(echo $active_ports | grep -q ${PORT_TUN}); then
+          break;
+        fi
       fi
-    fi
-  done
+    done
+  else
+    PORT_TUN=${SELECTED_PORT}
+    PORT_TAP=$((${PORT_TUN} + 1))
+  fi
 
   # Generate the client config
   cd ${ROOT}
