@@ -109,10 +109,6 @@ $(cat ${ROOT}/pki/ta.key)
 </tls-auth>" > ${CLIENT_CONFIG_TAP}
 fi
 
-# Extract port from client config
-PORT_TAP=$(grep "^remote " ${CLIENT_CONFIG_TAP} | sed "s/^remote .* \(\d\+\) .*/\1/")
-PORT_TUN=$((${PORT_TAP} + 1))
-
 if [ ! -e ${CLIENT_CONFIG_TUN} ]; then
   echo "#
 # OPENVPN configuration:
@@ -149,6 +145,10 @@ fi
 # Make them retrievable
 cat ${CLIENT_CONFIG_TAP} > ${ORIGINAL_CLIENT_CONFIG_TAP}
 cat ${CLIENT_CONFIG_TUN} > ${ORIGINAL_CLIENT_CONFIG_TUN}
+
+# Extract port from client config
+PORT_TAP=$(grep "^remote " ${CLIENT_CONFIG_TAP} | sed "s/^remote .* \(\d\+\) .*/\1/")
+PORT_TUN=$(grep "^remote " ${CLIENT_CONFIG_TUN} | sed "s/^remote .* \(\d\+\) .*/\1/")
 
 # Always generate the server config (in case the network changed so SERVER_BRIDGE has changed)
 echo "server-bridge ${SERVER_BRIDGE}
