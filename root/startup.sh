@@ -58,7 +58,7 @@ if [ ! -e ${CLIENT_CONFIG_TAP} ]; then
 
   if [ "${SELECTED_PORT}" = "" ]; then
     # Select an unused port at random from within our standard range avoiding any we see as in use
-    active_ports=$(upnpc -u ${__UPNPURL} -m ${HOME_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
+    active_ports=$(upnpc -m ${HOME_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
     while true ; do
       PORT_TUN=$((${PORTRANGE_START} + RANDOM % ${PORTRANGE_LEN}))
       PORT_TAP=$((${PORT_TUN} + 1))
@@ -213,7 +213,7 @@ $(cat ${ROOT}/pki/ta.key)
 $(cat ${ROOT}/pki/dh.pem)
 </dh>" > ${SERVER_CONFIG_TUN}
 
-trap "upnpc -u ${__UPNPURL} -d ${PORT_TAP} ${PROTO}; upnpc -u ${__UPNPURL} -d ${PORT_TUN} ${PROTO}; killall sleep openvpn; exit" TERM INT
+trap "upnpc -d ${PORT_TAP} ${PROTO}; upnpc -d ${PORT_TUN} ${PROTO}; killall sleep openvpn; exit" TERM INT
 
 # Premake devices
 openvpn --mktun --dev tap0
@@ -239,13 +239,13 @@ openvpn --daemon --config ${SERVER_CONFIG_TUN}
 # Open the NAT
 sleep 1 &
 while wait "$!"; do
-  upnpc -u ${__UPNPURL} -e ${HOSTNAME}_tap -a ${HOME_IP} ${PORT_TAP} ${PORT_TAP} ${PROTO} ${TTL}
-  upnpc -u ${__UPNPURL} -e ${HOSTNAME}_tun -a ${HOME_IP} ${PORT_TUN} ${PORT_TUN} ${PROTO} ${TTL}
+  upnpc -e ${HOSTNAME}_tap -a ${HOME_IP} ${PORT_TAP} ${PORT_TAP} ${PROTO} ${TTL}
+  upnpc -e ${HOSTNAME}_tun -a ${HOME_IP} ${PORT_TUN} ${PORT_TUN} ${PROTO} ${TTL}
   if [ "${__HOSTIP6}" != "" ]; then
-    upnpc -u ${__UPNPURL} -e ${HOSTNAME}_tap6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TAP} ${PROTO} ${TTL}
-    upnpc -u ${__UPNPURL} -e ${HOSTNAME}_tun6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TUN} ${PROTO} ${TTL}
+    upnpc -e ${HOSTNAME}_tap6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TAP} ${PROTO} ${TTL}
+    upnpc -e ${HOSTNAME}_tun6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TUN} ${PROTO} ${TTL}
   fi
   sleep ${TTL2} &
 done
-upnpc -u ${__UPNPURL} -d ${PORT_TAP} ${PROTO}
-upnpc -u ${__UPNPURL} -d ${PORT_TUN} ${PROTO}
+upnpc -d ${PORT_TAP} ${PROTO}
+upnpc -d ${PORT_TUN} ${PROTO}
