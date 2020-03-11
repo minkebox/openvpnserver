@@ -165,6 +165,8 @@ duplicate-cn
 client-to-client
 explicit-exit-notify 1
 keepalive 10 60
+txqueuelen 1000
+fast-io
 <ca>
 $(cat ${ROOT}/pki/ca.crt)
 </ca>
@@ -197,6 +199,8 @@ duplicate-cn
 client-to-client
 explicit-exit-notify 1
 keepalive 10 60
+txqueuelen 1000
+fast-io
 <ca>
 $(cat ${ROOT}/pki/ca.crt)
 </ca>
