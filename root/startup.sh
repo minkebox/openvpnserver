@@ -224,9 +224,7 @@ ifconfig br0 ${BRIDGE_IP} netmask 255.255.255.0 up
 /sbin/ip link set br0 address $(cat /sys/class/net/${__DEFAULT_INTERFACE}/address)
 brctl addif br0 ${__DEFAULT_INTERFACE}
 brctl addif br0 tap0
-#route add default gw ${__GATEWAY}
-#ip route add 0.0.0.0/1 via ${__GATEWAY}
-#ip route add 128.0.0.0/1 via ${__GATEWAY}
+ip route add default via ${__GATEWAY} dev br0
 
 # Masquarade the TUN vpn
 iptables -t nat -I POSTROUTING -o br0 -s ${SERVER_NETWORK_TUN}/24 -j MASQUERADE
