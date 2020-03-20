@@ -1,7 +1,5 @@
 #! /bin/sh
 
-HOME_INTERFACE=${__HOME_INTERFACE}
-PRIVATE_INTERFACE=${__PRIVATE_INTERFACE}
 PROTO=udp
 DDNS_DOMAIN=minkebox.net
 PRIVATE_HOSTNAME=${__GLOBALID}
@@ -20,18 +18,12 @@ TTL2=300 # TTL/2
 SERVER_NETWORK_TUN=10.224.76.0
 SERVER_BRIDGE=
 
-HOME_IP=$(ip addr show dev ${HOME_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
-if [ "${PRIVATE_INTERFACE}" != "" ]; then
-  BRIDGE_IP=$(ip addr show dev ${PRIVATE_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
-  BRIDGE_INTERFACE=${PRIVATE_INTERFACE}
-  BRIDGE_IP_ROOT=$(echo ${BRIDGE_IP} | sed "s/^\(\d\+.\d\+.\d\+\).*$/\1/")
+NAT_IP=$(ip addr show dev ${__NAT_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
+BRIDGE_IP=$(ip addr show dev ${__DEFAULT_INTERFACE} | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -1)
+BRIDGE_IP_ROOT=$(echo ${BRIDGE_IP} | sed "s/^\(\d\+.\d\+.\d\+\).*$/\1/")
+if [ "${__DEFAULT_INTERFACE}" = "${__INTERNAL_INTERFACE}" ]; then
   SERVER_BRIDGE="${BRIDGE_IP} 255.255.255.0 ${BRIDGE_IP_ROOT}.238 ${BRIDGE_IP_ROOT}.254"
-else
-  BRIDGE_IP=${HOME_IP}
-  BRIDGE_INTERFACE=${HOME_INTERFACE}
-  BRIDGE_IP_ROOT=$(echo ${BRIDGE_IP} | sed "s/^\(\d\+.\d\+.\d\+\).*$/\1/")
 fi
-
 
 PATH=$PATH:/usr/share/easy-rsa
 
@@ -58,7 +50,7 @@ if [ ! -e ${CLIENT_CONFIG_TAP} ]; then
 
   if [ "${SELECTED_PORT}" = "" ]; then
     # Select an unused port at random from within our standard range avoiding any we see as in use
-    active_ports=$(upnpc -m ${HOME_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
+    active_ports=$(upnpc -m ${__NAT_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
     while true ; do
       PORT_TUN=$((${PORTRANGE_START} + RANDOM % ${PORTRANGE_LEN}))
       PORT_TAP=$((${PORT_TUN} + 1))
@@ -217,7 +209,7 @@ $(cat ${ROOT}/pki/ta.key)
 $(cat ${ROOT}/pki/dh.pem)
 </dh>" > ${SERVER_CONFIG_TUN}
 
-trap "upnpc -d ${PORT_TAP} ${PROTO}; upnpc -d ${PORT_TUN} ${PROTO}; killall sleep openvpn; exit" TERM INT
+trap "killall sleep openvpn; exit" TERM INT
 
 # Premake devices
 openvpn --mktun --dev tap0
@@ -225,14 +217,16 @@ openvpn --mktun --dev tun0
 
 # Bridge the TAP vpn
 brctl addbr br0
-ifconfig ${BRIDGE_INTERFACE} 0.0.0.0 up
+ifconfig ${__DEFAULT_INTERFACE} 0.0.0.0 up
 ifconfig tap0 0.0.0.0 up
 ifconfig br0 ${BRIDGE_IP} netmask 255.255.255.0 up
 # Bridge inherits "main" network mac address
-/sbin/ip link set br0 address $(cat /sys/class/net/${BRIDGE_INTERFACE}/address)
-brctl addif br0 ${BRIDGE_INTERFACE}
+/sbin/ip link set br0 address $(cat /sys/class/net/${__DEFAULT_INTERFACE}/address)
+brctl addif br0 ${__DEFAULT_INTERFACE}
 brctl addif br0 tap0
-route add default gw ${__GATEWAY}
+#route add default gw ${__GATEWAY}
+ip route add 0.0.0.0/1 dev br0
+ip route add 128.0.0.0/1 dev br0
 
 # Masquarade the TUN vpn
 iptables -t nat -I POSTROUTING -o br0 -s ${SERVER_NETWORK_TUN}/24 -j MASQUERADE
@@ -243,13 +237,13 @@ openvpn --daemon --config ${SERVER_CONFIG_TUN}
 # Open the NAT
 sleep 1 &
 while wait "$!"; do
-  upnpc -e ${HOSTNAME}_tap -a ${HOME_IP} ${PORT_TAP} ${PORT_TAP} ${PROTO} ${TTL}
-  upnpc -e ${HOSTNAME}_tun -a ${HOME_IP} ${PORT_TUN} ${PORT_TUN} ${PROTO} ${TTL}
+  upnpc -m ${__NAT_INTERFACE} -e ${HOSTNAME}_tap -a ${NAT_IP} ${PORT_TAP} ${PORT_TAP} ${PROTO} ${TTL}
+  upnpc -m ${__NAT_INTERFACE} -e ${HOSTNAME}_tun -a ${NAT_IP} ${PORT_TUN} ${PORT_TUN} ${PROTO} ${TTL}
   if [ "${__HOSTIP6}" != "" ]; then
-    upnpc -e ${HOSTNAME}_tap6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TAP} ${PROTO} ${TTL}
-    upnpc -e ${HOSTNAME}_tun6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TUN} ${PROTO} ${TTL}
+    upnpc -m ${__NAT_INTERFACE} -e ${HOSTNAME}_tap6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TAP} ${PROTO} ${TTL}
+    upnpc -m ${__NAT_INTERFACE} -e ${HOSTNAME}_tun6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TUN} ${PROTO} ${TTL}
   fi
   sleep ${TTL2} &
 done
-upnpc -d ${PORT_TAP} ${PROTO}
-upnpc -d ${PORT_TUN} ${PROTO}
+upnpc -m ${__NAT_INTERFACE} -d ${PORT_TAP} ${PROTO}
+upnpc -m ${__NAT_INTERFACE} -d ${PORT_TUN} ${PROTO}
