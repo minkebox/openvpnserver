@@ -235,13 +235,13 @@ openvpn --daemon --config ${SERVER_CONFIG_TUN}
 # Open the NAT
 sleep 1 &
 while wait "$!"; do
-  upnpc -m ${__NAT_INTERFACE} -e ${HOSTNAME}_tap -a ${NAT_IP} ${PORT_TAP} ${PORT_TAP} ${PROTO} ${TTL}
-  upnpc -m ${__NAT_INTERFACE} -e ${HOSTNAME}_tun -a ${NAT_IP} ${PORT_TUN} ${PORT_TUN} ${PROTO} ${TTL}
+  upnpc -m br0 -e ${HOSTNAME}_tap -a ${NAT_IP} ${PORT_TAP} ${PORT_TAP} ${PROTO} ${TTL}
+  upnpc -m br0 -e ${HOSTNAME}_tun -a ${NAT_IP} ${PORT_TUN} ${PORT_TUN} ${PROTO} ${TTL}
   if [ "${__HOSTIP6}" != "" ]; then
-    upnpc -m ${__NAT_INTERFACE} -e ${HOSTNAME}_tap6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TAP} ${PROTO} ${TTL}
-    upnpc -m ${__NAT_INTERFACE} -e ${HOSTNAME}_tun6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TUN} ${PROTO} ${TTL}
+    upnpc -m br0 -e ${HOSTNAME}_tap6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TAP} ${PROTO} ${TTL}
+    upnpc -m br0 -e ${HOSTNAME}_tun6 -6 -A "" 0 ${__HOSTIP6} ${PORT_TUN} ${PROTO} ${TTL}
   fi
   sleep ${TTL2} &
 done
-upnpc -m ${__NAT_INTERFACE} -d ${PORT_TAP} ${PROTO}
-upnpc -m ${__NAT_INTERFACE} -d ${PORT_TUN} ${PROTO}
+upnpc -m br0 -d ${PORT_TAP} ${PROTO}
+upnpc -m br0 -d ${PORT_TUN} ${PROTO}
