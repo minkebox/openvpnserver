@@ -11,8 +11,6 @@ CLIENT_CONFIG_TAP=${ROOT}/minke-client.ovpn
 CLIENT_CONFIG_TUN=${ROOT}/minke-client-tun.ovpn
 ORIGINAL_CLIENT_CONFIG_TAP=/etc/config-alt.ovpn
 ORIGINAL_CLIENT_CONFIG_TUN=/etc/config.ovpn
-PORTRANGE_START=41310
-PORTRANGE_LEN=256
 TTL=600 # 10 minutes
 TTL2=300 # TTL/2
 SERVER_NETWORK_TUN=10.224.76.0
@@ -47,24 +45,8 @@ if [ ! -e ${ROOT}/config-done ]; then
 fi
 
 if [ ! -e ${CLIENT_CONFIG_TAP} ]; then
-
-  if [ "${SELECTED_PORT}" = "" ]; then
-    # Select an unused port at random from within our standard range avoiding any we see as in use
-    active_ports=$(upnpc -m ${__NAT_INTERFACE} -L | grep "^ *\d\? UDP\|TCP .*$" | sed "s/^.*:\(\d*\).*$/\1/")
-    while true ; do
-      PORT_TUN=$((${PORTRANGE_START} + RANDOM % ${PORTRANGE_LEN}))
-      PORT_TAP=$((${PORT_TUN} + 1))
-      if ! $(echo $active_ports | grep -q ${PORT_TAP}); then
-        if ! $(echo $active_ports | grep -q ${PORT_TUN}); then
-          break;
-        fi
-      fi
-    done
-  else
-    PORT_TUN=${SELECTED_PORT}
-    PORT_TAP=$((${PORT_TUN} + 1))
-  fi
-
+  PORT_TUN=${SELECTED_PORT}
+  PORT_TAP=$((${PORT_TUN} + 1))
   # Generate the client config
   cd ${ROOT}
   easyrsa build-client-full minke-client nopass
