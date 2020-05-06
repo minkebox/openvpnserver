@@ -194,6 +194,14 @@ trap "killall sleep openvpn; exit" TERM INT
 openvpn --mktun --dev tap0
 openvpn --mktun --dev tun0
 
+# Replace default monitoring
+iptables -D OUTPUT -j TX
+iptables -D INPUT -j RX
+iptables -I OUTPUT -o tap0 -j TX
+iptables -I INPUT -i tap0 -j RX
+iptables -I OUTPUT -o tun0 -j TX
+iptables -I INPUT -i tun0 -j RX
+
 # Bridge the TAP vpn
 brctl addbr br0
 ifconfig ${__DEFAULT_INTERFACE} 0.0.0.0 up
